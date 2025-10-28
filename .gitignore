@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 環境變數
+.env
+.env.local
+.env.*.local
+
+# 虛擬環境
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 資料庫
+*.db
+*.sqlite3
+
+# 日誌
+*.log
+logs/
+
+# macOS
+.DS_Store
+
+# 臨時檔案
+*.tmp
+*.temp
+
+# 模型檔案 (太大)
+*.pkl
+*.joblib
+data/models/*.pkl
+data/processed/*.pkl
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# ngrok
+ngrok
+ngrok.exe
+
+
+
