@@ -45,11 +45,7 @@ cp .env.example .env
 nano .env
 ```
 
-### 3. 申請 LINE Bot 金鑰
-
-請參考 [LINE_OA_SETUP_GUIDE.md](./LINE_OA_SETUP_GUIDE.md) 詳細步驟。
-
-### 4. 啟動服務
+### 3. 啟動服務
 
 ```bash
 # 啟動開發服務器
@@ -58,13 +54,6 @@ python run.py
 # 或使用 uvicorn
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-
-### 5. 測試連接
-
-1. 開啟瀏覽器訪問 `http://localhost:8000`
-2. 使用 ngrok 建立公開 URL 進行測試
-3. 設定 LINE Bot Webhook URL
-4. 加入 Bot 為好友並測試
 
 ## 📁 專案結構
 
@@ -114,26 +103,6 @@ Bot: [顯示玩具總動員相關資訊]
 Bot: [基於對話歷史提供更多推薦]
 ```
 
-## 🛠️ 開發指南
-
-### 添加新功能
-
-1. 在 `app/services/` 中添加新服務
-2. 在 `app/handlers/` 中添加對應處理器
-3. 在 `app/main.py` 中註冊新的路由
-
-### 自定義推薦算法
-
-1. 修改 `app/services/recommendation_service.py`
-2. 在 `notebooks/` 中進行算法實驗
-3. 更新模型訓練流程
-
-### 擴展 LINE Bot 功能
-
-1. 修改 `app/services/line_bot_service.py`
-2. 添加新的 Flex Message 模板
-3. 實現 Rich Menu 功能
-
 ## 📚 功能說明
 
 ### 已實現的功能
@@ -171,16 +140,6 @@ Bot: [基於對話歷史提供更多推薦]
 - `data/movies.csv`: 電影基本資訊
 - `data/tags.csv`: 使用者標籤資料
 
-## 🔐 環境變數說明
-
-```bash
-LINE_CHANNEL_ACCESS_TOKEN=你的LINE Bot Token
-LINE_CHANNEL_SECRET=你的LINE Bot Secret
-GEMINI_API_KEY=你的Gemini API金鑰
-DATABASE_URL=資料庫連接字串
-DEBUG=是否開啟除錯模式
-```
-
 ## 🚀 部署
 
 ### 使用 Docker
@@ -201,15 +160,6 @@ docker run -p 8000:8000 --env-file .env movie-recommender-bot
 - Railway
 - AWS Lambda
 
-## 🧪 測試
-
-```bash
-# 執行測試
-python -m pytest tests/
-
-# 執行特定測試
-python -m pytest tests/test_recommendation.py
-```
 
 ## 📈 監控
 
@@ -217,23 +167,10 @@ python -m pytest tests/test_recommendation.py
 - API 文檔: `/docs`
 - 日誌輸出: 控制台 + 檔案
 
-## 🤝 貢獻指南
-
-1. Fork 專案
-2. 創建功能分支
-3. 提交變更
-4. 發起 Pull Request
 
 ## 📄 授權
 
 MIT License
-
-## 📞 支援
-
-如有問題請：
-1. 查看 [LINE_OA_SETUP_GUIDE.md](./LINE_OA_SETUP_GUIDE.md)
-2. 檢查 Issues
-3. 查看專案 Wiki
 
 ---
 
