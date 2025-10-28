@@ -23,8 +23,8 @@
 
 ```bash
 # 克隆專案
-git clone <your-repo-url>
-cd MovieRecommenderSystem
+git clone https://github.com/hchh6453/MovieRecommender.git
+cd MovieRecommender
 
 # 建立虛擬環境
 python -m venv venv
