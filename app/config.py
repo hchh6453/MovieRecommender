@@ -15,6 +15,10 @@ class Settings:
     # Google Gemini AI 設定
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
+    # 外部電影資料來源 API（選填）
+    TMDB_API_KEY: str = os.getenv("TMDB_API_KEY", "")
+    OMDB_API_KEY: str = os.getenv("OMDB_API_KEY", "")
+    
     # 資料庫設定
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./movies.db")
     

@@ -40,7 +40,17 @@ BOT_PID=$!
 
 # 等待服務啟動
 echo "⏳ 等待服務啟動..."
-sleep 3
+
+# 重試健康檢查（最多 20 秒）
+ATTEMPTS=0
+MAX_ATTEMPTS=20
+until curl -s http://localhost:8000/health >/dev/null; do
+    ATTEMPTS=$((ATTEMPTS+1))
+    if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
+        break
+    fi
+    sleep 1
+done
 
 # 檢查服務是否正常
 if curl -s http://localhost:8000/health >/dev/null; then
@@ -59,10 +69,12 @@ if curl -s http://localhost:8000/health >/dev/null; then
     # 等待用戶中斷
     wait $BOT_PID
 else
-    echo "❌ 服務啟動失敗，請檢查錯誤訊息"
-    kill $BOT_PID 2>/dev/null
+    echo "❌ 服務啟動失敗，健康檢查未通過（已重試 ${ATTEMPTS} 次）"
+    echo "👉 建議：檢查日誌輸出或改用無重載啟動： uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+    kill $BOT_PID 2>/dev/null || true
     exit 1
 fi
+
 
 
 

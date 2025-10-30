@@ -202,6 +202,42 @@ class UserPreferenceService:
             return None
         return max(set(items), key=items.count)
     
+    def set_current_movie_context(self, user_id: str, movie_id: str, movie_title: str, movie_details: Dict) -> None:
+        """設置當前討論的電影上下文（供後續提問使用）"""
+        preferences = self.load_user_preferences(user_id)
+        preferences["current_movie_context"] = {
+            "movie_id": movie_id,
+            "movie_title": movie_title,
+            "movie_details": movie_details,
+            "timestamp": datetime.now().isoformat()
+        }
+        self.save_user_preferences(user_id, preferences)
+        logger.info(f"用戶 {user_id} 當前討論電影: {movie_title} (ID: {movie_id})")
+    
+    def get_current_movie_context(self, user_id: str) -> Optional[Dict]:
+        """獲取當前討論的電影上下文"""
+        preferences = self.load_user_preferences(user_id)
+        context = preferences.get("current_movie_context")
+        
+        # 如果上下文超過30分鐘，自動清除
+        if context:
+            try:
+                context_time = datetime.fromisoformat(context.get("timestamp", ""))
+                if datetime.now() - context_time > timedelta(minutes=30):
+                    preferences["current_movie_context"] = None
+                    self.save_user_preferences(user_id, preferences)
+                    return None
+            except Exception:
+                pass
+        
+        return context
+    
+    def clear_current_movie_context(self, user_id: str) -> None:
+        """清除當前討論的電影上下文"""
+        preferences = self.load_user_preferences(user_id)
+        preferences["current_movie_context"] = None
+        self.save_user_preferences(user_id, preferences)
+    
     def _default_preferences(self) -> Dict:
         """返回默認偏好"""
         return {
@@ -212,6 +248,7 @@ class UserPreferenceService:
             "query_history": [],
             "interactions": [],
             "genre_preference_strength": {},
+            "current_movie_context": None,
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat()
         }

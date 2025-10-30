@@ -7,10 +7,11 @@ from __future__ import annotations
 
 import os
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
 import pandas as pd
 import numpy as np
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -22,9 +23,9 @@ logger = logging.getLogger(__name__)
 class RecommendationService:
     def __init__(self, data_dir: str = "data") -> None:
         self.data_dir = data_dir
-        self.movies: pd.DataFrame | None = None
-        self.ratings: pd.DataFrame | None = None
-        self.vectorizer: TfidfVectorizer | None = None
+        self.movies: Optional[pd.DataFrame] = None
+        self.ratings: Optional[pd.DataFrame] = None
+        self.vectorizer: Optional[TfidfVectorizer] = None
         self.doc_matrix = None
         self.gemini_service = GeminiService()
         self._load_and_build()
@@ -136,6 +137,105 @@ class RecommendationService:
             ) + candidates[10:]
         
         # 9. 回傳前 top_k 個結果
+        return candidates[:top_k]
+    
+    def search_exact_movie(self, search_term: str) -> Optional[Dict]:
+        """精確搜尋電影（用於搜尋功能）"""
+        if not search_term or self.movies is None:
+            return None
+        
+        search_term = search_term.strip().lower()
+        
+        # 嘗試各種匹配方式
+        # 1. 完全匹配（忽略大小寫）
+        exact_matches = self.movies[
+            self.movies["title"].str.lower() == search_term
+        ]
+        
+        if not exact_matches.empty:
+            movie = exact_matches.iloc[0]
+            return {
+                "movieId": int(movie["movieId"]),
+                "title": str(movie["title"]),
+                "genres": str(movie.get("genres", "")),
+                "year": int(movie.get("year")) if pd.notna(movie.get("year")) else None,
+                "avg_rating": float(movie.get("avg_rating", 0)) if "avg_rating" in movie else 0
+            }
+        
+        # 2. 移除年份後匹配（例如搜尋 "Toy Story" 應該能找到 "Toy Story (1995)"）
+        search_term_no_year = re.sub(r'\s*\([0-9]{4}\)', '', search_term).strip()
+        
+        # 移除標題中的年份來比較
+        movies_no_year = self.movies.copy()
+        movies_no_year["title_no_year"] = movies_no_year["title"].str.replace(
+            r'\s*\([0-9]{4}\)', '', regex=True
+        ).str.lower().str.strip()
+        
+        matches = movies_no_year[
+            movies_no_year["title_no_year"] == search_term_no_year
+        ]
+        
+        if not matches.empty:
+            movie = matches.iloc[0]
+            return {
+                "movieId": int(movie["movieId"]),
+                "title": str(movie["title"]),
+                "genres": str(movie.get("genres", "")),
+                "year": int(movie.get("year")) if pd.notna(movie.get("year")) else None,
+                "avg_rating": float(movie.get("avg_rating", 0)) if "avg_rating" in movie else 0
+            }
+        
+        # 3. 部分匹配（標題包含搜尋詞）
+        partial_matches = movies_no_year[
+            movies_no_year["title_no_year"].str.contains(search_term_no_year, case=False, na=False)
+        ]
+        
+        if not partial_matches.empty:
+            # 優先選擇最相似的（最短標題通常最接近）
+            movie = partial_matches.loc[partial_matches["title_no_year"].str.len().idxmin()]
+            return {
+                "movieId": int(movie["movieId"]),
+                "title": str(movie["title"]),
+                "genres": str(movie.get("genres", "")),
+                "year": int(movie.get("year")) if pd.notna(movie.get("year")) else None,
+                "avg_rating": float(movie.get("avg_rating", 0)) if "avg_rating" in movie else 0
+            }
+        
+        return None
+    
+    def search_similar_movies(self, search_term: str, top_k: int = 5) -> List[Dict]:
+        """搜尋類似電影（用於找不到時的推薦）"""
+        if not search_term or self.vectorizer is None or self.doc_matrix is None or self.movies is None:
+            return []
+        
+        # 使用 TF-IDF 搜尋類似電影
+        query_vec = self.vectorizer.transform([search_term])
+        sims = cosine_similarity(query_vec, self.doc_matrix)[0]
+        
+        # 取得最相似的幾部
+        top_idx = sims.argsort()[::-1][:top_k * 2]  # 取得更多候選以過濾
+        
+        candidates = []
+        for idx in top_idx:
+            row = self.movies.iloc[idx]
+            # 提取年份
+            year = None
+            if pd.notna(row.get("year")):
+                year = int(row["year"])
+            
+            candidates.append({
+                "movieId": str(row["movieId"]),
+                "title": str(row["title"]),
+                "genres": str(row["genres"]),
+                "year": year,
+                "avg_rating": float(row.get("avg_rating", 0)) if "avg_rating" in row else 0,
+                "rating_count": int(row.get("rating_count", 0)) if "rating_count" in row else 0,
+                "similarity": float(sims[idx])
+            })
+        
+        # 按相似度和評分排序
+        candidates.sort(key=lambda x: (x["similarity"], x["avg_rating"]), reverse=True)
+        
         return candidates[:top_k]
     
     def _filter_excluded_genres(self, candidates: List[Dict], preferences: Dict) -> List[Dict]:
@@ -259,10 +359,12 @@ class RecommendationService:
         """根據偏好增強查詢文字"""
         enhanced_parts = [user_text]
         
-        # 加入偏好的類型
+        # 如果使用者明確指定了類型，加強該類型的權重（重複多次以提高 TF-IDF 權重）
         if preferences.get("genres"):
             genres_text = " ".join(preferences["genres"])
+            # 重複類型詞以增強 TF-IDF 權重（明確指定的類型需要優先）
             enhanced_parts.append(genres_text)
+            enhanced_parts.append(genres_text)  # 重複一次加強權重
         
         # 加入關鍵字
         if preferences.get("keywords"):
@@ -272,6 +374,12 @@ class RecommendationService:
         # 加入情緒描述
         if preferences.get("mood"):
             enhanced_parts.append(preferences["mood"])
+
+        # 加入國家/地區（提升對應關鍵詞權重）；排除國家目前僅作為重排序參考
+        if preferences.get("countries"):
+            countries_text = " ".join(preferences["countries"])  # 英文國名/地區名
+            enhanced_parts.append(countries_text)
+            enhanced_parts.append(countries_text)  # 再次加權
         
         return " ".join(enhanced_parts)
     

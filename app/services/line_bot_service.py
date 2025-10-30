@@ -53,6 +53,33 @@ def translate_genres(genres_str: str) -> str:
     
     return " • ".join(translated_genres)
 
+def translate_genres_to_english(genres_list: list) -> list:
+    """將中文電影類型轉換為英文"""
+    if not genres_list:
+        return []
+    
+    # 建立反向映射（中文→英文）
+    reverse_translation = {v: k for k, v in GENRE_TRANSLATION.items()}
+    
+    translated_genres = []
+    for genre in genres_list:
+        genre_str = str(genre).strip()
+        # 嘗試精確匹配
+        english_genre = reverse_translation.get(genre_str)
+        if english_genre:
+            translated_genres.append(english_genre)
+        else:
+            # 嘗試部分匹配（支援「動作片」「喜劇片」等）
+            for cn, en in reverse_translation.items():
+                if cn in genre_str or genre_str in cn:
+                    translated_genres.append(en)
+                    break
+            else:
+                # 如果找不到，保留原文（可能是英文）
+                translated_genres.append(genre_str)
+    
+    return translated_genres if translated_genres else genres_list
+
 class LineBotService:
     def __init__(self):
         """初始化 LINE Bot API"""
@@ -103,12 +130,21 @@ class LineBotService:
     def push_message(self, user_id: str, messages):
         """推送訊息給特定使用者"""
         try:
+            # 確保 messages 是列表格式
             if isinstance(messages, str):
-                messages = TextSendMessage(text=messages)
+                messages = [TextSendMessage(text=messages)]
             elif not isinstance(messages, list):
                 messages = [messages]
             
-            self.line_bot_api.push_message(user_id, messages)
+            # 確保列表中的每個元素都是正確的 LINE Bot 訊息物件
+            processed_messages = []
+            for msg in messages:
+                if isinstance(msg, str):
+                    processed_messages.append(TextSendMessage(text=msg))
+                else:
+                    processed_messages.append(msg)
+            
+            self.line_bot_api.push_message(user_id, processed_messages)
             logger.info(f"推送訊息給使用者 {user_id} 成功")
         except LineBotApiError as e:
             logger.error(f"LINE Bot API 錯誤: {e}")
@@ -155,11 +191,11 @@ class LineBotService:
                             "margin": "md",
                             "spacing": "xs",
                             "contents": [
-                                {
-                                    "type": "text",
+                        {
+                            "type": "text",
                                     "text": genres_cn,
-                                    "size": "sm",
-                                    "color": "#666666",
+                            "size": "sm",
+                            "color": "#666666",
                                     "wrap": True
                                 }
                             ]

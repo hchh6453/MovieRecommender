@@ -5,7 +5,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, PostbackEvent
+from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent, UnfollowEvent
 
 from .config import settings
 from .handlers.message_handler import MessageHandler
@@ -117,6 +117,16 @@ def handle_text_message(event):
 def handle_postback(event):
     """處理 Postback 事件"""
     message_handler.handle_postback(event)
+
+@message_handler.line_bot_service.handler.add(FollowEvent)
+def handle_follow(event):
+    """處理加入好友事件"""
+    message_handler.handle_follow(event)
+
+@message_handler.line_bot_service.handler.add(UnfollowEvent)
+def handle_unfollow(event):
+    """處理取消追蹤事件"""
+    message_handler.handle_unfollow(event)
 
 if __name__ == "__main__":
     import uvicorn
